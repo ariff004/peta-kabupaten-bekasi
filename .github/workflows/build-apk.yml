@@ -24,9 +24,10 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Install dependensi & build web Vite
+      - name: Install dependensi, Capacitor & build web Vite
         run: |
           npm install --legacy-peer-deps
+          npm install @capacitor/core @capacitor/cli @capacitor/android --legacy-peer-deps
           npm run build
 
       - name: Tambahkan platform Android & sinkronisasi Capacitor
