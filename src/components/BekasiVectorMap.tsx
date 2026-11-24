@@ -41,6 +41,8 @@ interface BekasiVectorMapProps {
   choroplethFilter?: ChoroplethFilter;
   duelHighlight?: DuelMapHighlight | null;
   compact?: boolean;
+  isResultView?: boolean;
+  selectedResultId?: string | null;
   lang?: Language;
   theme?: ThemePreset;
 }
@@ -84,6 +86,8 @@ export const BekasiVectorMap: React.FC<BekasiVectorMapProps> = ({
   choroplethFilter = 'none',
   duelHighlight = null,
   compact = false,
+  isResultView = false,
+  selectedResultId = null,
   lang = 'id',
   theme = 'light',
 }) => {
@@ -99,13 +103,17 @@ export const BekasiVectorMap: React.FC<BekasiVectorMapProps> = ({
     height: 0,
   });
   const [zoomK, setZoomK] = useState<number>(1);
-  const [showSolvedLabels, setShowSolvedLabels] = useState<boolean>(() => !compact);
+  const [showSolvedLabels, setShowSolvedLabels] = useState<boolean>(() => !compact || isResultView);
   const [hasInteractedZoom, setHasInteractedZoom] = useState<boolean>(false);
 
-  // Sync label default if compact changes
+  // Sync label default if compact changes or result view opens
   useEffect(() => {
-    setShowSolvedLabels(!compact);
-  }, [compact]);
+    if (isResultView) {
+      setShowSolvedLabels(true);
+    } else {
+      setShowSolvedLabels(!compact);
+    }
+  }, [compact, isResultView]);
 
   // Measure container cleanly for responsive auto fit-bounds
   useEffect(() => {
@@ -130,9 +138,9 @@ export const BekasiVectorMap: React.FC<BekasiVectorMapProps> = ({
   }, []);
 
   const silhouetteFeature = useMemo(() => {
-    if (mode !== 'silhouette' || !targetId) return null;
+    if (mode !== 'silhouette' || isResultView || !targetId) return null;
     return KECAMATAN_FEATURES.find((f) => f.properties.id === targetId) || null;
-  }, [mode, targetId]);
+  }, [isResultView, mode, targetId]);
 
   // Compute Choropleth min/max & per-district fills when active in explore mode
   const choroplethData = useMemo(() => {
@@ -247,13 +255,13 @@ export const BekasiVectorMap: React.FC<BekasiVectorMapProps> = ({
     };
   }, [dimensions]);
 
-  // Reset zoom/pan cleanly when mode or silhouette target changes
+  // Reset zoom/pan cleanly when mode, target, or result view state changes
   useEffect(() => {
     const svgEl = svgRef.current;
     const zoom = zoomBehaviorRef.current;
     if (!svgEl || !zoom) return;
     d3.select(svgEl).call(zoom.transform, d3.zoomIdentity);
-  }, [mode, targetId]);
+  }, [mode, targetId, isResultView]);
 
   const handleResetFit = useCallback(() => {
     const svgEl = svgRef.current;
@@ -304,8 +312,9 @@ export const BekasiVectorMap: React.FC<BekasiVectorMapProps> = ({
   const getPolygonStyle = (featureId: string) => {
     const isWrongFlash = wrongFlashId === featureId;
     const isHovered = hoveredId === featureId;
+    const isResultSelected = isResultView && selectedResultId === featureId;
     const status = statuses[featureId] || 'unanswered';
-    const isChoiceTarget = mode === 'choice' && targetId === featureId;
+    const isChoiceTarget = mode === 'choice' && !isResultView && targetId === featureId;
     const isExploreSelected = mode === 'explore' && selectedExploreId === featureId;
 
     if (isWrongFlash) {
@@ -369,22 +378,22 @@ export const BekasiVectorMap: React.FC<BekasiVectorMapProps> = ({
       if (status === 'correct-first') {
         return {
           fill: '#10B981',
-          stroke: tokens.mapSolvedStroke,
-          strokeWidth: 1.2,
+          stroke: isResultSelected ? tokens.mapChoroplethSelectedStroke : tokens.mapSolvedStroke,
+          strokeWidth: isResultSelected ? 2.2 : 1.2,
         };
       }
       if (status === 'correct-assisted') {
         return {
           fill: '#F59E0B',
-          stroke: tokens.mapAssistedStroke,
-          strokeWidth: 1.2,
+          stroke: isResultSelected ? tokens.mapChoroplethSelectedStroke : tokens.mapAssistedStroke,
+          strokeWidth: isResultSelected ? 2.2 : 1.2,
         };
       }
       if (status === 'missed') {
         return {
           fill: '#F43F5E',
-          stroke: tokens.mapMissedStroke,
-          strokeWidth: 1.2,
+          stroke: isResultSelected ? tokens.mapChoroplethSelectedStroke : tokens.mapMissedStroke,
+          strokeWidth: isResultSelected ? 2.2 : 1.2,
         };
       }
     }
@@ -404,14 +413,17 @@ export const BekasiVectorMap: React.FC<BekasiVectorMapProps> = ({
     };
   };
 
-  const hintCentroid = hintPulseId ? centroids.get(hintPulseId) : undefined;
-  const targetCentroid = mode === 'choice' && targetId ? centroids.get(targetId) : undefined;
+  const hintCentroid = !isResultView && hintPulseId ? centroids.get(hintPulseId) : undefined;
+  const targetCentroid =
+    !isResultView && mode === 'choice' && targetId ? centroids.get(targetId) : undefined;
   const exploreCentroid =
     mode === 'explore' && selectedExploreId ? centroids.get(selectedExploreId) : undefined;
   const duelCentroidA = mode === 'duel' && duelHighlight ? centroids.get(duelHighlight.idA) : undefined;
   const duelCentroidB = mode === 'duel' && duelHighlight ? centroids.get(duelHighlight.idB) : undefined;
 
-  const isCursorPassive = mode === 'silhouette' || mode === 'duel' || mode === 'nameAll' || mode === 'ranked';
+  const isCursorPassive =
+    !isResultView &&
+    (mode === 'silhouette' || mode === 'duel' || mode === 'nameAll' || mode === 'ranked');
 
   return (
     <div
@@ -515,8 +527,9 @@ export const BekasiVectorMap: React.FC<BekasiVectorMapProps> = ({
             }
 
             const topId =
+              (isResultView ? selectedResultId : null) ||
               wrongFlashId ||
-              (mode === 'choice' ? targetId : null) ||
+              (mode === 'choice' && !isResultView ? targetId : null) ||
               (mode === 'explore' ? selectedExploreId : null);
             if (!topId) return null;
             const d = paths.get(topId);

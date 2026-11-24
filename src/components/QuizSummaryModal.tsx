@@ -1,5 +1,5 @@
 import React from 'react';
-import { Award, CheckCircle2, Compass, HelpCircle, RotateCcw, SlidersHorizontal, XCircle } from 'lucide-react';
+import { Award, CheckCircle2, Compass, Eye, HelpCircle, Map as MapIcon, RotateCcw, SlidersHorizontal, XCircle } from 'lucide-react';
 import { KECAMATAN_META_LIST } from '../data/bekasiData';
 import type { BestRecord, DistrictStatus, Language, QuizMode, ThemePreset } from '../types/quiz';
 import { getModeLabel, getZoneLabel, UI_COPY } from '../utils/i18n';
@@ -21,6 +21,7 @@ interface QuizSummaryModalProps {
   customRecordSummary?: string;
   onPlayAgain: () => void;
   onChangeSettings?: () => void;
+  onViewResultMap: () => void;
   onExploreMap: () => void;
   onInspectDistrict: (id: string) => void;
   onBackToHome?: () => void;
@@ -50,6 +51,7 @@ export const QuizSummaryModal: React.FC<QuizSummaryModalProps> = ({
   customRecordSummary,
   onPlayAgain,
   onChangeSettings,
+  onViewResultMap,
   onExploreMap,
   onInspectDistrict,
   onBackToHome,
@@ -92,12 +94,14 @@ export const QuizSummaryModal: React.FC<QuizSummaryModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/60 backdrop-blur-xs p-0 sm:p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/35 p-0 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="summary-title"
+      onClick={onViewResultMap}
     >
       <div
+        onClick={(e) => e.stopPropagation()}
         className={`w-full sm:max-w-md ${tokens.surface} rounded-t-3xl sm:rounded-2xl border ${tokens.border} shadow-xl overflow-hidden flex flex-col max-h-[90dvh]`}
       >
         {/* Mobile grab handle */}
@@ -106,8 +110,8 @@ export const QuizSummaryModal: React.FC<QuizSummaryModalProps> = ({
         </div>
 
         <div className={`px-6 pt-5 pb-4 border-b ${tokens.border}`}>
-          <div className="flex items-center justify-between gap-4">
-            <div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
               <p className={`text-xs font-medium ${tokens.textMuted}`}>
                 {copy.summaryPrefix} · {modeLabel}
               </p>
@@ -116,10 +120,21 @@ export const QuizSummaryModal: React.FC<QuizSummaryModalProps> = ({
                   (isCustomCountMode ? copy.summaryNQuestionsDone(total) : copy.summaryAll23Done)}
               </h2>
             </div>
-            <div
-              className={`w-11 h-11 rounded-xl ${tokens.accentSoftBg} ${tokens.accentText} flex items-center justify-center shrink-0`}
-            >
-              <Award className="w-6 h-6" />
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={onViewResultMap}
+                aria-label={copy.viewResultMap}
+                title={copy.viewResultMap}
+                className={`min-w-[40px] min-h-[40px] rounded-xl border ${tokens.border} ${tokens.surfaceSubtle} ${tokens.textSecondary} ${tokens.surfaceHover} flex items-center justify-center transition-colors`}
+              >
+                <Eye className="w-4 h-4" />
+              </button>
+              <div
+                className={`w-11 h-11 rounded-xl ${tokens.accentSoftBg} ${tokens.accentText} flex items-center justify-center shrink-0`}
+              >
+                <Award className="w-6 h-6" />
+              </div>
             </div>
           </div>
 
@@ -257,30 +272,38 @@ export const QuizSummaryModal: React.FC<QuizSummaryModalProps> = ({
 
         {/* Footer Actions */}
         <div className={`px-6 py-4 pb-safe border-t ${tokens.border} ${tokens.surfaceSubtle} space-y-2`}>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <button
               type="button"
-              onClick={onExploreMap}
-              className={`flex-1 min-h-[48px] px-4 py-2.5 rounded-xl border ${tokens.borderStrong} ${tokens.surface} ${tokens.textSecondary} text-sm font-semibold ${tokens.surfaceHover} active:scale-[0.99] transition flex items-center justify-center gap-2 whitespace-nowrap shrink-0`}
+              onClick={onViewResultMap}
+              className={`flex-1 min-h-[48px] px-3.5 py-2.5 rounded-xl border ${tokens.borderStrong} ${tokens.surface} ${tokens.textPrimary} text-sm font-semibold ${tokens.surfaceHover} active:scale-[0.99] transition flex items-center justify-center gap-2 whitespace-nowrap shrink-0`}
             >
-              <Compass className="w-4 h-4" />
-              {copy.summaryExploreMap}
+              <MapIcon className="w-4 h-4 shrink-0" />
+              {copy.viewResultMap}
             </button>
             <button
               type="button"
               onClick={onPlayAgain}
-              className={`flex-1 min-h-[48px] px-4 py-2.5 rounded-xl ${tokens.accentBg} ${tokens.accentHover} text-white text-sm font-semibold active:scale-[0.99] transition flex items-center justify-center gap-2 whitespace-nowrap shrink-0`}
+              className={`flex-1 min-h-[48px] px-3.5 py-2.5 rounded-xl ${tokens.accentBg} ${tokens.accentHover} text-white text-sm font-semibold active:scale-[0.99] transition flex items-center justify-center gap-2 whitespace-nowrap shrink-0`}
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="w-4 h-4 shrink-0" />
               {copy.playAgain}
             </button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={onExploreMap}
+              className={`min-h-[38px] px-3 py-1.5 rounded-lg text-xs font-semibold ${tokens.textSecondary} ${tokens.surfaceHover} transition flex items-center justify-center gap-1.5`}
+            >
+              <Compass className="w-3.5 h-3.5" />
+              {copy.summaryExploreMap}
+            </button>
             {onChangeSettings && (
               <button
                 type="button"
                 onClick={onChangeSettings}
-                className={`flex-1 min-h-[40px] px-3 py-1.5 rounded-lg text-xs font-semibold ${tokens.textMuted} ${tokens.surfaceHover} transition flex items-center justify-center gap-1.5`}
+                className={`min-h-[38px] px-3 py-1.5 rounded-lg text-xs font-semibold ${tokens.textMuted} ${tokens.surfaceHover} transition flex items-center justify-center gap-1.5`}
               >
                 <SlidersHorizontal className="w-3.5 h-3.5" />
                 {copy.summaryChangeSettings}
@@ -290,7 +313,7 @@ export const QuizSummaryModal: React.FC<QuizSummaryModalProps> = ({
               <button
                 type="button"
                 onClick={onBackToHome}
-                className={`flex-1 min-h-[40px] px-3 py-1.5 rounded-lg text-xs font-semibold ${tokens.textMuted} ${tokens.surfaceHover} transition`}
+                className={`min-h-[38px] px-3 py-1.5 rounded-lg text-xs font-semibold ${tokens.textMuted} ${tokens.surfaceHover} transition`}
               >
                 {copy.backToHome}
               </button>

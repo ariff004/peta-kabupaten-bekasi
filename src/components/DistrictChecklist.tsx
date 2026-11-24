@@ -11,6 +11,7 @@ interface DistrictChecklistProps {
   statuses: Record<string, DistrictStatus>;
   selectedExploreId: string | null;
   onFocusDistrict: (id: string) => void;
+  isResultView?: boolean;
   lang?: Language;
   theme?: ThemePreset;
 }
@@ -20,6 +21,7 @@ export const DistrictChecklist: React.FC<DistrictChecklistProps> = ({
   statuses,
   selectedExploreId,
   onFocusDistrict,
+  isResultView = false,
   lang = 'id',
   theme = 'light',
 }) => {
@@ -32,9 +34,11 @@ export const DistrictChecklist: React.FC<DistrictChecklistProps> = ({
       {sorted.map((item) => {
         const status = statuses[item.id] || 'unanswered';
         const isSolved = status !== 'unanswered';
-        const canRevealName = mode === 'explore' || isSolved;
+        const canRevealName = mode === 'explore' || isResultView || isSolved;
         const canFocusOnMap =
-          mode === 'explore' || (mode !== 'silhouette' && mode !== 'duel' && isSolved);
+          mode === 'explore' ||
+          isResultView ||
+          (mode !== 'silhouette' && mode !== 'duel' && isSolved);
         const isSelected = mode === 'explore' && selectedExploreId === item.id;
 
         return (

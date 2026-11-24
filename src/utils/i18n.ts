@@ -304,6 +304,10 @@ export const UI_COPY = {
     summaryMissedChip: 'Belum Tertebak',
     summaryExploreMap: 'Jelajah Peta',
     summaryChangeSettings: 'Ubah Pengaturan',
+    viewResultMap: 'Lihat Peta Hasil',
+    showScoreModal: 'Tampilkan Modal Skor',
+    resultMapBanner: 'Peta Hasil Kuis · Geser atau perbesar peta untuk melihat warna & nama kecamatan',
+    statusNotInRound: 'Di luar cakupan',
   },
   en: {
     pageTitle: 'Bekasi Regency Map — 23 Districts Quiz',
@@ -436,5 +440,9 @@ export const UI_COPY = {
     summaryMissedChip: 'Missed',
     summaryExploreMap: 'Explore Map',
     summaryChangeSettings: 'Change Settings',
+    viewResultMap: 'View Result Map',
+    showScoreModal: 'Show Score Modal',
+    resultMapBanner: 'Result Map View · Pan or zoom to inspect district colors & names',
+    statusNotInRound: 'Outside scope',
   },
 } as const;

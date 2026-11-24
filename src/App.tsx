@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
+  Award,
   Check,
   CheckCircle2,
   ChevronRight,
@@ -310,6 +311,8 @@ export default function App() {
   const [feedback, setFeedback] = useState<FeedbackBanner | null>(null);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
+  const [summaryModalHidden, setSummaryModalHidden] = useState<boolean>(false);
+  const [selectedResultId, setSelectedResultId] = useState<string | null>(null);
   const [isNewBest, setIsNewBest] = useState<boolean>(false);
   const [bestRecords, setBestRecords] = useState<Partial<Record<RecordKey, BestRecord>>>(
     () => loadBestRecords()
@@ -539,6 +542,8 @@ export default function App() {
     if (elapsedSeconds >= duelTimeLimit) {
       clearPendingTimers();
       setIsCompleted(true);
+      setSummaryModalHidden(false);
+      setSelectedResultId(null);
       playCompleteTone(soundEnabled);
       const accuracy =
         duelAnsweredCount > 0 ? Math.round((duelCorrectCount / duelAnsweredCount) * 100) : 0;
@@ -635,6 +640,8 @@ export default function App() {
       setHoveredId(null);
       setFeedback(null);
       setIsCompleted(false);
+      setSummaryModalHidden(false);
+      setSelectedResultId(null);
       setIsNewBest(false);
       setChecklistOpen(false);
       setScreen('play');
@@ -690,6 +697,8 @@ export default function App() {
       }
       setFeedback(null);
       setIsCompleted(false);
+      setSummaryModalHidden(false);
+      setSelectedResultId(null);
       setIsNewBest(false);
       setChecklistOpen(false);
       setScreen('play');
@@ -706,6 +715,8 @@ export default function App() {
         setWrongFlashId(null);
         setHoveredId(null);
         setIsCompleted(false);
+        setSummaryModalHidden(false);
+        setSelectedResultId(null);
         setChecklistOpen(false);
         setScreen('play');
         return;
@@ -717,6 +728,8 @@ export default function App() {
         setFeedback(null);
         setHoveredId(null);
         setIsCompleted(false);
+        setSummaryModalHidden(false);
+        setSelectedResultId(null);
         setIsNewBest(false);
         setChecklistOpen(false);
         setScreen('play');
@@ -730,6 +743,8 @@ export default function App() {
   const handleBackToHome = useCallback(() => {
     clearPendingTimers();
     setIsCompleted(false);
+    setSummaryModalHidden(false);
+    setSelectedResultId(null);
     setFeedback(null);
     setWrongFlashId(null);
     setHoveredId(null);
@@ -741,6 +756,8 @@ export default function App() {
   const finishQuiz = useCallback(
     (finalStatuses: Record<string, DistrictStatus>, finalScore: number, finalSeconds: number) => {
       setIsCompleted(true);
+      setSummaryModalHidden(false);
+      setSelectedResultId(null);
       playCompleteTone(soundEnabled);
 
       if (mode !== 'explore' && mode !== 'duel') {
@@ -791,7 +808,12 @@ export default function App() {
         return;
       }
 
-      if (mode !== 'locate' || !currentTargetId || isCompleted || isTransitioningRef.current) {
+      if (isCompleted || (mode === 'nameAll' && nameAllEnded) || (mode === 'ranked' && rankedEnded)) {
+        setSelectedResultId((prev) => (prev === clickedId ? null : clickedId));
+        return;
+      }
+
+      if (mode !== 'locate' || !currentTargetId || isTransitioningRef.current) {
         return;
       }
 
@@ -889,6 +911,8 @@ export default function App() {
       isCompleted,
       lang,
       mode,
+      nameAllEnded,
+      rankedEnded,
       score,
       soundEnabled,
       statuses,
@@ -1367,6 +1391,8 @@ export default function App() {
 
       if (duelFormat === 'questions' && latestRound >= duelQuestionLimit) {
         setIsCompleted(true);
+        setSummaryModalHidden(false);
+        setSelectedResultId(null);
         playCompleteTone(soundEnabled);
         const accuracy = Math.round((latestCorrect / duelQuestionLimit) * 100);
         saveBestRecordIfBeaten('duelQuestions', latestScore, accuracy, elapsedSeconds);
@@ -1558,19 +1584,32 @@ export default function App() {
     (id: string) => {
       if (mode === 'explore') {
         setSelectedExploreId(id);
+      } else if (
+        isCompleted ||
+        (mode === 'nameAll' && nameAllEnded) ||
+        (mode === 'ranked' && rankedEnded)
+      ) {
+        setSelectedResultId(id);
       }
       setFocusRequest({ id, nonce: Date.now() });
       setChecklistOpen(false);
     },
-    [mode]
+    [isCompleted, mode, nameAllEnded, rankedEnded]
   );
 
   const selectedExploreMeta = selectedExploreId ? KECAMATAN_META_BY_ID[selectedExploreId] : null;
+  const selectedResultMeta = selectedResultId ? KECAMATAN_META_BY_ID[selectedResultId] : null;
   const hoveredMeta = hoveredId ? KECAMATAN_META_BY_ID[hoveredId] : null;
+  const isQuizResultMapReady =
+    isCompleted || (mode === 'nameAll' && nameAllEnded) || (mode === 'ranked' && rankedEnded);
+  const isResultMapView = isCompleted && summaryModalHidden;
 
   const canRevealHoveredName =
     hoveredId &&
-    (mode === 'explore' || mode === 'duel' || statuses[hoveredId] !== 'unanswered');
+    (mode === 'explore' ||
+      mode === 'duel' ||
+      isQuizResultMapReady ||
+      statuses[hoveredId] !== 'unanswered');
 
   const activeBestRecord =
     mode === 'explore'
@@ -2267,7 +2306,7 @@ export default function App() {
             </button>
           </div>
         </main>
-      ) : mode === 'ranked' ? (
+      ) : mode === 'ranked' && !isResultMapView ? (
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
           {/* Category Switcher + Scope Switcher + Lives Bar */}
           <div className={`${tokens.surface} border-b ${tokens.border} px-3 sm:px-6 py-2 shrink-0`}>
@@ -2371,8 +2410,10 @@ export default function App() {
               selectedExploreId={null}
               hoveredId={hoveredId}
               onHoverDistrict={setHoveredId}
-              onSelectDistrict={() => {}}
+              onSelectDistrict={handleMapSelectDistrict}
               compact={true}
+              isResultView={rankedEnded || isCompleted}
+              selectedResultId={selectedResultId}
               lang={lang}
               theme={theme}
             />
@@ -2423,7 +2464,10 @@ export default function App() {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setIsCompleted(true)}
+                    onClick={() => {
+                      setIsCompleted(true);
+                      setSummaryModalHidden(false);
+                    }}
                     className={`flex-1 min-h-[44px] px-4 rounded-xl border ${tokens.borderStrong} ${tokens.surface} ${tokens.textSecondary} text-xs sm:text-sm font-semibold ${tokens.surfaceHover} transition whitespace-nowrap`}
                   >
                     {copy.viewSummary}
@@ -2594,9 +2638,13 @@ export default function App() {
             <BekasiVectorMap
               mode={mode}
               statuses={statuses}
-              targetId={currentTargetId}
-              wrongFlashId={wrongFlashId}
-              hintPulseId={mode === 'locate' && hintLevel === 2 ? currentTargetId : null}
+              targetId={isQuizResultMapReady ? null : currentTargetId}
+              wrongFlashId={isQuizResultMapReady ? null : wrongFlashId}
+              hintPulseId={
+                mode === 'locate' && hintLevel === 2 && !isQuizResultMapReady
+                  ? currentTargetId
+                  : null
+              }
               selectedExploreId={selectedExploreId}
               hoveredId={hoveredId}
               onHoverDistrict={setHoveredId}
@@ -2604,6 +2652,8 @@ export default function App() {
               focusRequest={focusRequest}
               choroplethFilter={mode === 'explore' ? choroplethFilter : 'none'}
               duelHighlight={duelHighlight}
+              isResultView={isQuizResultMapReady}
+              selectedResultId={selectedResultId}
               lang={lang}
               theme={theme}
             />
@@ -2662,8 +2712,8 @@ export default function App() {
             className={`${tokens.surface} border-t ${tokens.border} px-3.5 sm:px-6 pt-3 pb-safe shrink-0 z-30`}
           >
             <div className="max-w-2xl mx-auto w-full space-y-2.5">
-              {/* Inline Feedback Banner */}
-              {feedback && (
+              {/* Inline Feedback Banner (hidden when completed Result Bar is active) */}
+              {feedback && !isCompleted && (
                 <div
                   className={`flex items-start gap-2 px-3 py-2 rounded-xl text-xs border ${
                     feedback.type === 'correct'
@@ -2691,8 +2741,110 @@ export default function App() {
                 </div>
               )}
 
+              {/* Result Map Inspection Bar (shown when Quiz is Completed, including 'Lihat Peta Hasil' toggle mode) */}
+              {isCompleted && (
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className={`text-xs font-medium ${tokens.textMuted}`}>
+                      {selectedResultMeta ? (
+                        <span className="flex items-center gap-2 flex-wrap">
+                          <span className={`font-bold ${tokens.textPrimary}`}>
+                            {selectedResultMeta.name}
+                          </span>
+                          <span>· {getZoneLabel(selectedResultMeta.zona, lang)} ·</span>
+                          {(() => {
+                            const st = statuses[selectedResultMeta.id];
+                            if (st === 'correct-first') {
+                              return (
+                                <span className={tokens.isDark ? 'text-emerald-400 font-semibold' : 'text-emerald-700 font-semibold'}>
+                                  {copy.correct}
+                                </span>
+                              );
+                            }
+                            if (st === 'correct-assisted') {
+                              return (
+                                <span className={tokens.isDark ? 'text-amber-400 font-semibold' : 'text-amber-700 font-semibold'}>
+                                  {copy.assisted}
+                                </span>
+                              );
+                            }
+                            if (st === 'missed') {
+                              return (
+                                <span className={tokens.isDark ? 'text-rose-400 font-semibold' : 'text-rose-700 font-semibold'}>
+                                  {copy.missed}
+                                </span>
+                              );
+                            }
+                            return <span>{copy.statusNotInRound}</span>;
+                          })()}
+                        </span>
+                      ) : (
+                        copy.resultMapBanner
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2.5 text-xs font-mono tabular-nums">
+                      <span className="inline-flex items-center gap-1 text-emerald-500 font-semibold">
+                        <span className="w-2 h-2 rounded-xs bg-emerald-500 inline-block" />
+                        {mode === 'duel'
+                          ? duelCorrectCount
+                          : mode === 'ranked'
+                          ? rankedSolvedCount
+                          : Object.values(statuses).filter((s) => s === 'correct-first').length}
+                      </span>
+                      {mode !== 'nameAll' && mode !== 'duel' && mode !== 'ranked' && (
+                        <span className="inline-flex items-center gap-1 text-amber-500 font-semibold">
+                          <span className="w-2 h-2 rounded-xs bg-amber-500 inline-block" />
+                          {Object.values(statuses).filter((s) => s === 'correct-assisted').length}
+                        </span>
+                      )}
+                      <span className="inline-flex items-center gap-1 text-rose-500 font-semibold">
+                        <span className="w-2 h-2 rounded-xs bg-rose-500 inline-block" />
+                        {mode === 'duel'
+                          ? Math.max(
+                              0,
+                              (duelFormat === 'questions' ? duelQuestionLimit : duelAnsweredCount) -
+                                duelCorrectCount
+                            )
+                          : mode === 'ranked'
+                          ? Math.max(0, rankedScopeCfg.count - rankedSolvedCount)
+                          : Object.values(statuses).filter((s) => s === 'missed').length}
+                      </span>
+                      <span className={`font-bold ${tokens.textPrimary}`}>
+                        {score} {copy.pts}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSummaryModalHidden(false)}
+                      className={`flex-1 min-h-[44px] px-4 rounded-xl border ${tokens.borderStrong} ${tokens.surfaceSubtle} ${tokens.textPrimary} text-xs sm:text-sm font-semibold ${tokens.surfaceHover} active:scale-[0.99] transition flex items-center justify-center gap-1.5 whitespace-nowrap`}
+                    >
+                      <Award className="w-4 h-4 shrink-0" />
+                      {copy.showScoreModal}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        startNewRound(mode, {
+                          timed: mode === 'nameAll' ? nameAllTimed : undefined,
+                          rankedCategory: mode === 'ranked' ? rankedMetric : undefined,
+                          rankedVariant: mode === 'ranked' ? rankedScope : undefined,
+                        })
+                      }
+                      className={`flex-1 min-h-[44px] px-4 rounded-xl ${tokens.accentBg} ${tokens.accentHover} text-white text-xs sm:text-sm font-semibold active:scale-[0.99] transition flex items-center justify-center gap-1.5 whitespace-nowrap`}
+                    >
+                      <RotateCcw className="w-4 h-4 shrink-0" />
+                      {copy.playAgain}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Mode 1: Cari Peta */}
-              {mode === 'locate' && currentTargetMeta && (
+              {!isCompleted && mode === 'locate' && currentTargetMeta && (
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className={`text-xs font-medium ${tokens.textMuted}`}>
@@ -2726,7 +2878,7 @@ export default function App() {
               )}
 
               {/* Mode 2 & 3: Tebak Nama & Tebak Bentuk Wilayah */}
-              {(mode === 'choice' || mode === 'silhouette') && currentTargetId && (
+              {!isCompleted && (mode === 'choice' || mode === 'silhouette') && currentTargetId && (
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <div className={`text-xs sm:text-sm font-semibold ${tokens.textPrimary}`}>
@@ -2798,7 +2950,7 @@ export default function App() {
               )}
 
               {/* Mode 4: Sebutkan Semua (Name Them All) */}
-              {mode === 'nameAll' && (
+              {!isCompleted && mode === 'nameAll' && (
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div
@@ -2866,7 +3018,10 @@ export default function App() {
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => setIsCompleted(true)}
+                        onClick={() => {
+                          setIsCompleted(true);
+                          setSummaryModalHidden(false);
+                        }}
                         className={`flex-1 min-h-[44px] px-4 rounded-xl border ${tokens.borderStrong} ${tokens.surface} ${tokens.textSecondary} text-xs sm:text-sm font-semibold ${tokens.surfaceHover} transition whitespace-nowrap`}
                       >
                         {copy.viewSummary}
@@ -2885,7 +3040,7 @@ export default function App() {
               )}
 
               {/* Mode 5: Adu Data (Perbandingan 2 Kecamatan) */}
-              {mode === 'duel' && duelPhase === 'playing' && currentDuel && (
+              {!isCompleted && mode === 'duel' && duelPhase === 'playing' && currentDuel && (
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <div className={`text-xs sm:text-sm font-bold ${tokens.textPrimary}`}>
@@ -3131,6 +3286,7 @@ export default function App() {
                 statuses={statuses}
                 selectedExploreId={selectedExploreId}
                 onFocusDistrict={handleFocusDistrict}
+                isResultView={isQuizResultMapReady}
                 lang={lang}
                 theme={theme}
               />
@@ -3141,7 +3297,7 @@ export default function App() {
 
       {/* END OF QUIZ SUMMARY MODAL */}
       <QuizSummaryModal
-        isOpen={isCompleted}
+        isOpen={isCompleted && !summaryModalHidden}
         mode={mode}
         statuses={statuses}
         score={score}
@@ -3220,18 +3376,23 @@ export default function App() {
             ? () => {
                 clearPendingTimers();
                 setIsCompleted(false);
+                setSummaryModalHidden(false);
+                setSelectedResultId(null);
                 setDuelPhase('setup');
               }
             : undefined
         }
+        onViewResultMap={() => setSummaryModalHidden(true)}
         onExploreMap={() => {
           setIsCompleted(false);
+          setSummaryModalHidden(false);
+          setSelectedResultId(null);
           setMode('explore');
         }}
         onInspectDistrict={(id) => {
-          setIsCompleted(false);
-          setMode('explore');
-          handleFocusDistrict(id);
+          setSummaryModalHidden(true);
+          setSelectedResultId(id);
+          setFocusRequest({ id, nonce: Date.now() });
         }}
         onBackToHome={handleBackToHome}
         lang={lang}
