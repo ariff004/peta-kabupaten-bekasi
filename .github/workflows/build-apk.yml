@@ -35,8 +35,10 @@ jobs:
           npx cap add android
           npx cap sync android
 
-      - name: Kompilasi Debug APK via Gradle
+      - name: Kompilasi Debug APK via Gradle dengan Keystore Tetap
         run: |
+          mkdir -p ~/.android
+          cp keystore/debug.keystore ~/.android/debug.keystore
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
